@@ -101,7 +101,6 @@ confirm() ->
     ?assertEqual(5000, Found),
     close_pb_conn(PB),
 
-    %% TODO: This won't work until fix to `riak_core_bucket:set_bucket' is made
     set_search_false(Cluster, ?FRUIT_BUCKET),
     disable_riak_search(),
     stop_riak_search(Cluster),
@@ -139,7 +138,14 @@ stop_riak_search(Cluster) ->
 %% @doc Disable the search hook on `Bucket'.
 set_search_false(Cluster, Bucket) ->
     lager:info("Uninstall search hook for bucket ~p", [Bucket]),
-    ?assertEqual(ok, rpc:call(hd(Cluster), riak_search_kv_hook, uninstall, [Bucket])).
+    ?assertEqual(ok, rpc:call(hd(Cluster), riak_search_kv_hook, uninstall, [Bucket])),
+    F = fun(Node) ->
+                PB = create_pb_conn(Node),
+                PC = pb_get_bucket_prop(PB, ?FRUIT_BUCKET, precommit, false),
+                close_pb_conn(PB),
+                PC == []
+        end,
+    yz_rt:wait_until(Cluster, F).
 
 %% @doc Disable Riak Search in all app.config files.
 disable_riak_search() ->
@@ -217,7 +223,9 @@ create_pb_conn(Node) ->
 
 load_data(Cluster, YZBenchDir, NumKeys) ->
     {ExitCode, _} = yz_rt:load_data(Cluster, ?FRUIT_BUCKET, YZBenchDir, NumKeys),
-    ?assertEqual(0,ExitCode).
+    ?assertEqual(0,ExitCode),
+    %% sleep for soft-commit
+    timer:sleep(1100).
 
 query_data(Cluster, YZBenchDir, NumKeys, Time) ->
     lager:info("Run query against cluster ~p", [Cluster]),
@@ -269,7 +277,7 @@ rolling_upgrade(Cluster, Vsn) ->
                             {anti_entropy_concurrency, 6},
                             {anti_entropy_build_limit, {6,500}},
                             {enabled, true},
-			    {solr_port, integer_to_list(SolrPort)}]}],
+                            {solr_port, SolrPort}]}],
 	 rt:upgrade(Node, Vsn, Cfg),
 	 rt:wait_for_service(Node, riak_kv),
 	 rt:wait_for_service(Node, riak_search),
