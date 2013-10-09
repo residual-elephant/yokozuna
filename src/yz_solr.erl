@@ -92,8 +92,7 @@ cores() ->
     case yz_solr:core(status, [{wt,json}]) of
         {ok, _, Body} ->
             {struct, Status} = kvc:path([<<"status">>], mochijson2:decode(Body)),
-            Cores = ordsets:from_list([binary_to_list(Name)
-                                       || {Name, _} <- Status]),
+            Cores = ordsets:from_list([Name || {Name, _} <- Status]),
             {ok, Cores};
         {error,_} = Err ->
             Err
@@ -168,6 +167,18 @@ index(Core, Docs, DelOps) ->
     case ibrowse:send_req(URL, Headers, post, JSON, Opts) of
         {ok, "200", _, _} -> ok;
         Err -> throw({"Failed to index docs", Ops, Err})
+    end.
+
+-spec mbeans_and_stats(index_name()) -> {ok, JSON :: binary()} |
+                                        {error, Reason :: term()}.
+mbeans_and_stats(Index) ->
+    Params = [{stats, <<"true">>},
+              {wt, <<"json">>}],
+    URL = ?FMT("~s/~s/admin/mbeans?~s", [base_url(), Index, mochiweb_util:urlencode(Params)]),
+    Opts = [{response_format, binary}],
+    case ibrowse:send_req(URL, [], get, [], Opts) of
+        {ok, "200", _, Body} -> {ok, Body};
+        Err -> {error, Err}
     end.
 
 prepare_json(Docs) ->
