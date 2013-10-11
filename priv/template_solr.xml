@@ -2,7 +2,7 @@
 <solr>
 
   <shardHandlerFactory name="shardHandlerFactory"
-    class="HttpShardHandlerFactory">
+    class="com.basho.yokozuna.handler.component.YZHttpShardHandlerFactory">
     <int name="socketTimeout">${socketTimeout:0}</int>
     <int name="connTimeout">${connTimeout:0}</int>
   </shardHandlerFactory>
