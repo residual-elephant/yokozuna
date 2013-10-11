@@ -3,11 +3,12 @@ package com.basho.yokozuna.handler.component;
 import org.apache.http.client.HttpClient;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.handler.component.HttpShardHandler;
+import org.apache.solr.handler.component.HttpShardHandlerFactory;
 import org.apache.solr.handler.component.ShardRequest;
 
 public class YZHttpShardHandler extends HttpShardHandler {
 
-    public YZHttpShardHandler(YZHttpShardHandlerFactory shf, HttpClient client) {
+    public YZHttpShardHandler(HttpShardHandlerFactory shf, HttpClient client) {
         super(shf, client);
     }
 
