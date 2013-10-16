@@ -4,7 +4,6 @@
                 host_entries/1,
                 run_bb/2,
                 search_expect/5, search_expect/6,
-                set_index/2,
                 verify_count/2,
                 wait_for_joins/1, write_terms/2]).
 -include_lib("eunit/include/eunit.hrl").
@@ -168,11 +167,11 @@ setup_indexing(Cluster, PBConns, YZBenchDir) ->
     yz_rt:store_schema(PBConn, ?FRUIT_SCHEMA_NAME, RawSchema),
     yz_rt:wait_for_schema(Cluster, ?FRUIT_SCHEMA_NAME, RawSchema),
     ok = create_index(Node, ?INDEX, ?FRUIT_SCHEMA_NAME),
-    ok = set_index(Node, ?INDEX),
+    ok = yz_rt:set_bucket_type_index(Node, ?INDEX),
     ok = create_index(Node, <<"tagging">>),
-    ok = set_index(Node, <<"tagging">>),
+    ok = yz_rt:set_bucket_type_index(Node, <<"tagging">>),
     ok = create_index(Node, <<"siblings">>),
-    ok = set_index(Node, <<"siblings">>),
+    ok = yz_rt:set_bucket_type_index(Node, <<"siblings">>),
     [yz_rt:wait_for_index(Cluster, I)
      || I <- [<<"fruit">>, <<"tagging">>, <<"siblings">>]].
 

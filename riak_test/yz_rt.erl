@@ -211,13 +211,12 @@ remove_index(Node, Bucket) ->
     lager:info("Remove index from bucket ~s [~p]", [Bucket, Node]),
     ok = rpc:call(Node, yz_kv, remove_index, [Bucket]).
 
-set_index(Node, Bucket) ->
-    set_index(Node, Bucket, Bucket).
+set_bucket_type_index(Node, BucketType) ->
+    set_bucket_type_index(Node, BucketType, BucketType).
 
-%% TODO: this should use PB interface like clients
-set_index(Node, Bucket, Index) ->
-    lager:info("Set bucket ~s index to ~s [~p]", [Bucket, Index, Node]),
-    ok = rpc:call(Node, yz_kv, set_index, [Bucket, Index]).
+set_bucket_type_index(Node, BucketType, Index) ->
+    lager:info("Set bucket type ~s index to ~s [~p]", [BucketType, Index, Node]),
+    rt:create_and_activate_bucket_type(Node, BucketType, [{?YZ_INDEX, Index}]).
 
 solr_http(ConnInfo) ->
     proplists:get_value(solr_http, ConnInfo).

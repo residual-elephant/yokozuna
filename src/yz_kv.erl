@@ -35,6 +35,28 @@
 
 
 %%%===================================================================
+%%% TODO: move to riak_core
+%%%===================================================================
+
+bucket_name({_,Name}) ->
+    Name;
+bucket_name(Name) ->
+    Name.
+
+bucket_type({Type,_}) ->
+    Type;
+bucket_type(_) ->
+    <<"default">>.
+
+is_default_type({<<"default">>,_}) ->
+    true;
+is_default_type({_,_}) ->
+    false;
+is_default_type(_) ->
+    true.
+
+
+%%%===================================================================
 %%% API
 %%%===================================================================
 
@@ -118,9 +140,17 @@ get_index(BProps) ->
 %% @doc Extract the index name.
 %% @see get_index/1
 -spec get_index(bkey(), ring()) -> index_name().
-get_index({Bucket,_} = _BKey, Ring) ->
-    BProps = riak_core_bucket:get_bucket(Bucket, Ring),
-    get_index(BProps).
+%% get_index({{<<"default">>, BName}, _}, Ring) ->
+%%     %% Migrated from Riak Search, use bucket name as index name.
+%%     BName;
+get_index({Bucket, _}, Ring) ->
+    case is_default_type(Bucket) of
+        false ->
+            BProps = riak_core_bucket:get_bucket(Bucket, Ring),
+            get_index(BProps);
+        true ->
+            bucket_name(Bucket)
+    end.
 
 %% @doc Determine the "short" preference list given the `BKey' and
 %% `Ring'.  A short preflist is one that defines the preflist by
@@ -312,15 +342,15 @@ put(Client, Bucket, Key, Value, ContentType) ->
 
 %% @doc Remove the `Index' property from `Bucket'.  Data stored under
 %%      `Bucket' will no longer be indexed.
--spec remove_index(bucket()) -> ok.
-remove_index(Bucket) ->
-    set_index(Bucket, ?YZ_INDEX_TOMBSTONE).
+%% -spec remove_index(bucket()) -> ok.
+%% remove_index(Bucket) ->
+%%     set_index(Bucket, ?YZ_INDEX_TOMBSTONE).
 
 %% @doc Set the `Index' for which data stored in `Bucket' should be
 %%      indexed under.
--spec set_index(bucket(), index_name()) -> ok.
-set_index(Bucket, Index) ->
-    ok = riak_core_bucket:set_bucket(Bucket, [{?YZ_INDEX, Index}]).
+%% -spec set_index(bucket_type(), index_name()) -> ok.
+%% set_index(BucketType, Index) ->
+%%     ok = riak_core_bucket:set_bucket({BucketTypel, [{?YZ_INDEX, Index}]).
 
 %%%===================================================================
 %%% Private
