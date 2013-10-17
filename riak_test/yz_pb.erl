@@ -69,7 +69,7 @@ create_index(Cluster, Index, Bucket) ->
     %% set index in props with the same name as the bucket
     ?assertEqual(ok, riakc_pb_socket:create_search_index(Pid, Index)),
     % Add the index to the bucket props
-    yz_rt:set_index(Node, Index, Bucket),
+    yz_rt:set_bucket_type_index(Node, Index, Bucket),
     yz_rt:wait_for_index(Cluster, Index),
     %% Check that the index exists
     {ok, IndexData} = riakc_pb_socket:get_search_index(Pid, Index),
@@ -126,7 +126,8 @@ confirm_admin_index(Cluster) ->
     {ok, Pid} = riakc_pb_socket:start_link(Host, (Port-1)),
     F = fun(_) ->
         %% Remove index from bucket props and delete it
-        yz_rt:set_index(Node, Index, <<>>),
+                %% TODO: NEED TO FIGURE OUT DELETE
+        yz_rt:set_bucket_type_index(Node, Index, <<>>),
         DelResp = riakc_pb_socket:delete_search_index(Pid, Index),
         case DelResp of
             ok -> true;

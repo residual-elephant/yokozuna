@@ -144,12 +144,17 @@ get_index(BProps) ->
 %%     %% Migrated from Riak Search, use bucket name as index name.
 %%     BName;
 get_index({Bucket, _}, Ring) ->
+    BProps = riak_core_bucket:get_bucket(Bucket, Ring),
     case is_default_type(Bucket) of
         false ->
-            BProps = riak_core_bucket:get_bucket(Bucket, Ring),
             get_index(BProps);
         true ->
-            bucket_name(Bucket)
+            case proplists:get_value(search, BProps, false) of
+                false ->
+                    ?YZ_INDEX_TOMBSTONE;
+                true ->
+                    bucket_name(Bucket)
+            end
     end.
 
 %% @doc Determine the "short" preference list given the `BKey' and

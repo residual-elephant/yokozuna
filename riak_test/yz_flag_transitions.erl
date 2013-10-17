@@ -60,7 +60,7 @@ verify_index_add(Cluster, YZBenchDir) ->
     {ok, "404", _, _} = yz_rt:search(yokozuna, HP, <<"fruit">>, "*", "*"),
     lager:info("Create fruit index + set flag"),
     yz_rt:create_index(yz_rt:select_random(Cluster), <<"fruit">>),
-    yz_rt:set_index(yz_rt:select_random(Cluster), <<"fruit">>),
+    yz_rt:set_bucket_type_index(yz_rt:select_random(Cluster), <<"fruit">>),
     yz_rt:wait_for_index(Cluster, <<"fruit">>),
 
     %% TODO: use YZ/KV AAE stats to determine when AAE has covered ring once.
@@ -92,8 +92,8 @@ verify_many_to_one_index_remove(Cluster) ->
     Node = yz_rt:select_random(Cluster),
     HP = hd(yz_rt:host_entries(rt:connection_info([Node]))),
     yz_rt:create_index(Node, Index),
-    yz_rt:set_index(Node, <<"b1">>, Index),
-    yz_rt:set_index(Node, <<"b2">>, Index),
+    yz_rt:set_bucket_type_index(Node, <<"b1">>, Index),
+    yz_rt:set_bucket_type_index(Node, <<"b2">>, Index),
     yz_rt:wait_for_index(Cluster, Index),
     yz_rt:http_put(HP, <<"b1">>, <<"key">>, <<"somedata">>),
     yz_rt:http_put(HP, <<"b2">>, <<"key">>, <<"somedata">>),

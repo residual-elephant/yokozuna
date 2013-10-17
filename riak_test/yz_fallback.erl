@@ -41,7 +41,7 @@ check_fallbacks(Cluster) ->
 create_index(Cluster, Index) ->
     Node = yz_rt:select_random(Cluster),
     yz_rt:create_index(Node, Index),
-    ok = yz_rt:set_index(Node, Index),
+    ok = yz_rt:set_bucket_type_index(Node, Index),
     timer:sleep(5000).
 
 make_logical(Node, Preflist) ->

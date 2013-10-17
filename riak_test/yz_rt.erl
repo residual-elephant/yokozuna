@@ -127,13 +127,13 @@ load_data(Cluster, Bucket, YZBenchDir, NumKeys) ->
            {concurrent, 3},
            {code_paths, [YZBenchDir]},
            {driver, yz_driver},
-           {index_path, "/riak/" ++ binary_to_list(Bucket)},
+           {bucket, Bucket},
            {http_conns, Hosts},
            {pb_conns, []},
            {key_generator, KeyGen},
            {operations, [{load_fruit, 1}]},
            {shutdown_on_error, true}],
-    File = "bb-load-" ++ binary_to_list(Bucket),
+    File = "load-data",
     write_terms(File, Cfg),
     run_bb(sync, File).
 

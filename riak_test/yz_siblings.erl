@@ -3,7 +3,6 @@
 -compile(export_all).
 -import(yz_rt, [host_entries/1,
                 run_bb/2, search_expect/5,
-                set_index/2,
                 select_random/1, verify_count/2,
                 write_terms/2]).
 -include_lib("eunit/include/eunit.hrl").
@@ -110,5 +109,5 @@ create_index(Cluster, HP, Index) ->
     URL = index_url(HP, Index),
     Headers = [{"content-type", "application/json"}],
     {ok, "204", _, _} = http(put, URL, Headers, ?NO_BODY),
-    ok = set_index(hd(Cluster), Index),
+    ok = yz_rt:set_bucket_type_index(hd(Cluster), Index),
     yz_rt:wait_for_index(Cluster, Index).
