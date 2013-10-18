@@ -92,14 +92,14 @@ get_yz_conn_info(Node) ->
 host_entries(ClusterConnInfo) ->
     [riak_http(I) || {_,I} <- ClusterConnInfo].
 
--spec http_put({string(), portnum()}, binary(), binary(), binary()) -> ok.
+-spec http_put({string(), portnum()}, bucket(), binary(), binary()) -> ok.
 http_put(HP, Bucket, Key, Value) ->
     http_put(HP, Bucket, Key, "text/plain", Value).
 
--spec http_put({string(), portnum()}, binary(), binary(), string(), binary()) -> ok.
-http_put({Host, Port}, Bucket, Key, CT, Value) ->
-    URL = ?FMT("http://~s:~s/riak/~s/~s",
-               [Host, integer_to_list(Port), Bucket, Key]),
+-spec http_put({string(), portnum()}, bucket(), binary(), string(), binary()) -> ok.
+http_put({Host, Port}, {BType, BName}, Key, CT, Value) ->
+    URL = ?FMT("http://~s:~s/types/~s/buckets/~s/keys/~s",
+               [Host, integer_to_list(Port), BType, BName, Key]),
     Opts = [],
     Headers = [{"content-type", CT}],
     {ok, "204", _, _} = ibrowse:send_req(URL, Headers, put, Value, Opts),
@@ -207,9 +207,11 @@ select_random(List) ->
     Idx = random:uniform(Length),
     lists:nth(Idx, List).
 
-remove_index(Node, Bucket) ->
-    lager:info("Remove index from bucket ~s [~p]", [Bucket, Node]),
-    ok = rpc:call(Node, yz_kv, remove_index, [Bucket]).
+-spec remove_index(node(), bucket()) -> ok.
+remove_index(Node, BucketType) ->
+    lager:info("Remove index from bucket type ~s [~p]", [BucketType, Node]),
+    %% ok = rpc:call(Node, yz_kv, remove_index, [Bucket]).
+    ok = rpc:call(Node, riak_core_bucket_type, update, [BucketType, [{?YZ_INDEX, ?YZ_INDEX_TOMBSTONE}]]).
 
 set_bucket_type_index(Node, BucketType) ->
     set_bucket_type_index(Node, BucketType, BucketType).

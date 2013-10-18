@@ -11,6 +11,7 @@
 %%       responsible for only one bucket.
 -module(yz_flag_transitions).
 -compile(export_all).
+-include("yokozuna.hrl").
 -include_lib("eunit/include/eunit.hrl").
 -define(NUM_KEYS, 1000).
 -define(CFG,
@@ -51,23 +52,27 @@ confirm() ->
 %% will be discovered and repaired.
 verify_index_add(Cluster, YZBenchDir) ->
     lager:info("Verify adding index"),
-    yz_rt:load_data(Cluster, <<"fruit">>, YZBenchDir, ?NUM_KEYS),
+    Index = <<"fruit">>,
+    Bucket = {Index, <<"bucket">>},
+    rt:create_and_activate_bucket_type(yz_rt:select_random(Cluster), Index, []),
+    yz_rt:load_data(Cluster, Bucket, YZBenchDir, ?NUM_KEYS),
     %% Let 1s soft-commit catch up
     timer:sleep(1000),
     Hosts = yz_rt:host_entries(rt:connection_info(Cluster)),
     HP = yz_rt:select_random(Hosts),
     lager:info("Verify fruit index doesn't exist"),
-    {ok, "404", _, _} = yz_rt:search(yokozuna, HP, <<"fruit">>, "*", "*"),
+    {ok, "404", _, _} = yz_rt:search(yokozuna, HP, Index, "*", "*"),
     lager:info("Create fruit index + set flag"),
-    yz_rt:create_index(yz_rt:select_random(Cluster), <<"fruit">>),
-    yz_rt:set_bucket_type_index(yz_rt:select_random(Cluster), <<"fruit">>),
-    yz_rt:wait_for_index(Cluster, <<"fruit">>),
+    yz_rt:create_index(yz_rt:select_random(Cluster), Index),
+    %% yz_rt:set_bucket_type_index(yz_rt:select_random(Cluster), Index),
+    ok = rpc:call(yz_rt:select_random(Cluster), riak_core_bucket_type, update, [Index, [{?YZ_INDEX, Index}]]),
+    yz_rt:wait_for_index(Cluster, Index),
 
     %% TODO: use YZ/KV AAE stats to determine when AAE has covered ring once.
     F = fun(Node) ->
                 lager:info("Verify that AAE re-indexes objects under fruit index [~p]", [Node]),
                 HP2 = hd(yz_rt:host_entries(rt:connection_info([Node]))),
-                yz_rt:search_expect(HP2, <<"fruit">>, "*", "*", ?NUM_KEYS)
+                yz_rt:search_expect(HP2, Index, "*", "*", ?NUM_KEYS)
         end,
     yz_rt:wait_until(Cluster, F).
 
@@ -75,12 +80,13 @@ verify_index_add(Cluster, YZBenchDir) ->
 %%      index should be deleted.
 verify_index_remove(Cluster) ->
     lager:info("Verify removing index"),
+    Index = <<"fruit">>,
     Node = yz_rt:select_random(Cluster),
-    yz_rt:remove_index(Node, <<"fruit">>),
+    yz_rt:remove_index(Node, Index),
     F = fun(Node2) ->
                 lager:info("Verify fruit indexes are deleted [~p]", [Node2]),
                 HP = hd(yz_rt:host_entries(rt:connection_info([Node2]))),
-                yz_rt:search_expect(HP, <<"fruit">>, "*", "*", 0)
+                yz_rt:search_expect(HP, Index, "*", "*", 0)
         end,
     yz_rt:wait_until(Cluster, F).
 
@@ -88,15 +94,17 @@ verify_index_remove(Cluster) ->
 %%      that bucket's data in the associated index.
 verify_many_to_one_index_remove(Cluster) ->
     Index = <<"many">>,
+    B1 = {Index, <<"b1">>},
+    B2 = {Index, <<"b2">>},
     lager:info("Verify removing index on a many-to-one index"),
     Node = yz_rt:select_random(Cluster),
     HP = hd(yz_rt:host_entries(rt:connection_info([Node]))),
     yz_rt:create_index(Node, Index),
-    yz_rt:set_bucket_type_index(Node, <<"b1">>, Index),
-    yz_rt:set_bucket_type_index(Node, <<"b2">>, Index),
+    yz_rt:set_bucket_type_index(Node, Index),
+    %% yz_rt:set_bucket_type_index(Node, Index),
     yz_rt:wait_for_index(Cluster, Index),
-    yz_rt:http_put(HP, <<"b1">>, <<"key">>, <<"somedata">>),
-    yz_rt:http_put(HP, <<"b2">>, <<"key">>, <<"somedata">>),
+    yz_rt:http_put(HP, B1, <<"key">>, <<"somedata">>),
+    yz_rt:http_put(HP, B2, <<"key">>, <<"somedata">>),
     %% Wait for soft-commit
     timer:sleep(1100),
     ?assert(yz_rt:search_expect(HP, Index, "_yz_rb", "b1", 1)),
