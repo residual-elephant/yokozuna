@@ -167,6 +167,34 @@ get_short_preflist({Bucket, _} = BKey, Ring) ->
     PrimaryPL = yz_misc:primary_preflist(BKey, Ring, NVal),
     {first_partition(PrimaryPL), NVal}.
 
+%% @doc Called by KV vnode to determine if handoff should start or
+%% not.  Yokozuna needs to make sure that the bucket types have been
+%% transfered first.  Otherwise the bucket-to-index associations may
+%% be missing causing missing index entries.
+%%
+%% TODO: Currently this call will block vnode and also vnode mgr.  If
+%% I want to get really fancy the first time this function is called I
+%% could return false but then send off async job to wait for bucket
+%% types to transfer.  Once types have transfered some global flag
+%% which is cheap to check would be set and this call would simply
+%% check that.
+-spec should_handoff({p(), node()}) -> boolean().
+should_handoff({_Reason, {_Partition, TargetNode}}) ->
+    BucketTypesPrefix = {core, bucket_types},
+    Server = {riak_core_metadata_hashtree, TargetNode},
+    RemoteHash = gen_server:call(Server, {prefix_hash, BucketTypesPrefix}, 1000),
+    %% TODO Even though next call is local should also add 1s timeout
+    %% since this call blocks vnode.  Or see above.
+    LocalHash = riak_core_metadata_hashtree:prefix_hash(BucketTypesPrefix),
+    case LocalHash == RemoteHash of
+        true ->
+            true;
+        false ->
+            ?INFO("waiting for bucket types prefix to agree between ~p and ~p",
+                  [node(), TargetNode]),
+            false
+    end.
+
 index(Obj, Reason, P) ->
     case yokozuna:is_enabled(index) andalso ?YZ_ENABLED of
         true ->

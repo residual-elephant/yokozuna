@@ -22,6 +22,7 @@
 %%       cluster and you will see zero repairs occur.
 
 -define(FRUIT_SCHEMA_NAME, <<"fruit">>).
+-define(BUCKET, {<<"fruit">>,<<"b1">>}).
 -define(INDEX, <<"fruit">>).
 -define(NUM_KEYS, 10000).
 -define(SUCCESS, 0).
@@ -46,7 +47,7 @@ confirm() ->
     wait_for_joins(Cluster),
     rt:wait_for_cluster_service(Cluster, yokozuna),
     setup_indexing(Cluster, PBConns, YZBenchDir),
-    {0, _} = yz_rt:load_data(Cluster, ?INDEX, YZBenchDir, ?NUM_KEYS),
+    {0, _} = yz_rt:load_data(Cluster, ?BUCKET, YZBenchDir, ?NUM_KEYS),
     %% wait for soft-commit
     timer:sleep(1000),
     Ref = async_query(Cluster, YZBenchDir),
@@ -91,7 +92,7 @@ test_tagging(Cluster) ->
 
 write_with_tag({Host, Port}) ->
     lager:info("Tag the object tagging/test"),
-    URL = lists:flatten(io_lib:format("http://~s:~s/buckets/tagging/keys/test",
+    URL = lists:flatten(io_lib:format("http://~s:~s/types/tagging/buckets/b1/keys/test",
                                       [Host, integer_to_list(Port)])),
     Opts = [],
     Body = <<"testing tagging">>,
@@ -115,10 +116,9 @@ async_query(Cluster, YZBenchDir) ->
            {operations, [{Apple,1}]},
            {http_conns, Hosts},
            {pb_conns, []},
-           {search_path, "/search/" ++ binary_to_list(?INDEX)},
+           {bucket, ?BUCKET},
            {shutdown_on_error, true}],
-
-    File = "bb-query-fruit-" ++ binary_to_list(?INDEX),
+    File = "bb-query-fruit",
     write_terms(File, Cfg),
     run_bb(async, File).
 
@@ -129,7 +129,7 @@ delete_key(Cluster, Key) ->
     Node = yz_rt:select_random(Cluster),
     lager:info("Deleting key ~s", [Key]),
     {ok, C} = riak:client_connect(Node),
-    C:delete(?INDEX, list_to_binary(Key)).
+    C:delete(?BUCKET, list_to_binary(Key)).
 
 delete_some_data(Cluster, ReapSleep) ->
     Keys = yz_rt:random_keys(?NUM_KEYS),
@@ -190,10 +190,9 @@ verify_deletes(Cluster, KeysDeleted, YZBenchDir) ->
            {operations, [{Apple,1}]},
            {http_conns, Hosts},
            {pb_conns, []},
-           {search_path, "/search/" ++ binary_to_list(?INDEX)},
+           {bucket, ?BUCKET},
            {shutdown_on_error, true}],
-
-    File = "bb-verify-deletes-" ++ binary_to_list(?INDEX),
+    File = "bb-verify-deletes",
     write_terms(File, Cfg),
     check_status(run_bb(sync, File)).
 
