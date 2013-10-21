@@ -15,11 +15,12 @@
 <schema name=\"test\" version=\"1.5\">
 <fields>
    <field name=\"_yz_id\" type=\"_yz_str\" indexed=\"true\" stored=\"true\" required=\"true\" />
-   <field name=\"_yz_ed\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
-   <field name=\"_yz_pn\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
-   <field name=\"_yz_fpn\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
-   <field name=\"_yz_vtag\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
-   <field name=\"_yz_node\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
+   <field name=\"_yz_ed\" type=\"_yz_str\" indexed=\"true\"/>
+   <field name=\"_yz_pn\" type=\"_yz_str\" indexed=\"true\"/>
+   <field name=\"_yz_fpn\" type=\"_yz_str\" indexed=\"true\"/>
+   <field name=\"_yz_vtag\" type=\"_yz_str\" indexed=\"true\"/>
+   <field name=\"_yz_node\" type=\"_yz_str\" indexed=\"true\"/>
+   <field name=\"_yz_rt\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
    <field name=\"_yz_rk\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
    <field name=\"_yz_rb\" type=\"_yz_str\" indexed=\"true\" stored=\"true\"/>
 </fields>
@@ -54,22 +55,23 @@ schema_url({Host,Port}, Name) ->
 index_url({Host,Port}, Index) ->
     ?FMT("http://~s:~B/yz/index/~s", [Host, Port, Index]).
 
-bucket_url({Host,Port}, Bucket, Key) ->
-    ?FMT("http://~s:~B/buckets/~s/keys/~s", [Host, Port, Bucket, Key]).
+bucket_url({Host,Port}, {BType, BName}, Key) ->
+    ?FMT("http://~s:~B/types/~s/buckets/~s/keys/~s",
+         [Host, Port, BType, BName, Key]).
 
 http(Method, URL, Headers, Body) ->
     Opts = [],
     ibrowse:send_req(URL, Headers, Method, Body, Opts).
 
-create_index(Cluster, Index, Bucket) ->
+create_index(Cluster, BucketType, Index) ->
     Node = select_random(Cluster),
     [{Host, Port}] = host_entries(rt:connection_info([Node])),
-    lager:info("create_index ~s for bucket ~s [~p]", [Index, Bucket, {Host, Port}]),
+    lager:info("create_index ~s for bucket type ~s [~p]", [Index, BucketType, {Host, Port}]),
     {ok, Pid} = riakc_pb_socket:start_link(Host, (Port-1)),
     %% set index in props with the same name as the bucket
     ?assertEqual(ok, riakc_pb_socket:create_search_index(Pid, Index)),
     % Add the index to the bucket props
-    yz_rt:set_bucket_type_index(Node, Index, Bucket),
+    yz_rt:set_bucket_type_index(Node, BucketType, Index),
     yz_rt:wait_for_index(Cluster, Index),
     %% Check that the index exists
     {ok, IndexData} = riakc_pb_socket:get_search_index(Pid, Index),
@@ -81,6 +83,7 @@ store_and_search(Cluster, Bucket, Key, Body, Search, Params) ->
     store_and_search(Cluster, Bucket, Key, Body, "text/plain", Search, Params).
 
 store_and_search(Cluster, Bucket, Key, Body, CT, Search, Params) ->
+    {BType, _} = Bucket,
     {Host, Port} = select_random(host_entries(rt:connection_info(Cluster))),
     URL = bucket_url({Host, Port}, Bucket, Key),
     lager:info("Storing to bucket ~s", [URL]),
@@ -90,10 +93,10 @@ store_and_search(Cluster, Bucket, Key, Body, CT, Search, Params) ->
     F = fun(_) ->
         lager:info("Search for ~s [~p:~p]", [Search, Host, Port]),
         {ok,{search_results,R,Score,Found}} =
-            riakc_pb_socket:search(Pid, Bucket, Search, Params),
+            riakc_pb_socket:search(Pid, BType, Search, Params),
         case Found of
             1 ->
-                [{Bucket,Results}] = R,
+                [{BType,Results}] = R,
                 KeyCheck = (Key == binary_to_list(proplists:get_value(<<"_yz_rk">>, Results))),
                 ScoreCheck = (Score =/= 0.0),
                 KeyCheck and ScoreCheck;
@@ -126,8 +129,8 @@ confirm_admin_index(Cluster) ->
     {ok, Pid} = riakc_pb_socket:start_link(Host, (Port-1)),
     F = fun(_) ->
         %% Remove index from bucket props and delete it
-                %% TODO: NEED TO FIGURE OUT DELETE
-        yz_rt:set_bucket_type_index(Node, Index, <<>>),
+        ok = rpc:call(Node, riak_core_bucket_type, update,
+                      [Index, [{?YZ_INDEX, ?YZ_INDEX_TOMBSTONE}]]),
         DelResp = riakc_pb_socket:delete_search_index(Pid, Index),
         case DelResp of
             ok -> true;
@@ -139,25 +142,27 @@ confirm_admin_index(Cluster) ->
     ok.
 
 confirm_basic_search(Cluster) ->
-    Bucket = <<"basic">>,
-    create_index(Cluster, Bucket, Bucket),
+    Index = <<"basic">>,
+    Bucket = {Index, <<"b1">>},
+    create_index(Cluster, Index, Index),
     lager:info("confirm_basic_search ~s", [Bucket]),
     Body = "herp derp",
     Params = [{sort, <<"score desc">>}, {fl, ["*","score"]}],
     store_and_search(Cluster, Bucket, "test", Body, <<"text:herp">>, Params).
 
 confirm_encoded_search(Cluster) ->
-    Bucket = <<"encoded">>,
-    create_index(Cluster, Bucket, Bucket),
+    Index = <<"encoded">>,
+    Bucket = {Index, <<"b1">>},
+    create_index(Cluster, Index, Index),
     lager:info("confirm_encoded_search ~s", [Bucket]),
     Body = "א בְּרֵאשִׁית, בָּרָא אֱלֹהִים, אֵת הַשָּׁמַיִם, וְאֵת הָאָרֶץ",
     Params = [{sort, <<"score desc">>}, {fl, ["_yz_rk"]}],
     store_and_search(Cluster, Bucket, "וְאֵת", Body, <<"text:בָּרָא">>, Params).
 
 confirm_multivalued_field(Cluster) ->
-    Bucket = <<"basic">>,
+    Index = <<"basic">>,
+    Bucket = {Index, <<"b1">>},
     lager:info("cofirm multiValued=true fields decode properly"),
-    create_index(Cluster, Bucket, Bucket),
     Body = <<"{\"name_ss\":\"turner\", \"name_ss\":\"hooch\"}">>,
     Params = [],
     HP = select_random(host_entries(rt:connection_info(Cluster))),
@@ -170,7 +175,7 @@ confirm_multivalued_field(Cluster) ->
     timer:sleep(1100),
     Search = <<"name_ss:turner">>,
     {ok, Pid} = riakc_pb_socket:start_link(Host, (Port-1)),
-    {ok,{search_results,[{Bucket,Fields}],_Score,_Found}} =
-            riakc_pb_socket:search(Pid, Bucket, Search, Params),
+    {ok,{search_results,[{Index,Fields}],_Score,_Found}} =
+            riakc_pb_socket:search(Pid, Index, Search, Params),
     ?assert(lists:member({<<"name_ss">>,<<"turner">>}, Fields)),
     ?assert(lists:member({<<"name_ss">>,<<"hooch">>}, Fields)).
