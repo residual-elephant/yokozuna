@@ -63,19 +63,21 @@ confirm() ->
     yz_rt:close_pb_conns(PBConns),
     pass.
 
+%% @doc Verify that the delete call made my `yz_kv:cleanup' can deal
+%% with a key which contains characters like '/', ':' and '-'.
 test_escaped_key(Cluster) ->
     lager:info("Test key escape"),
     {H, P} = hd(host_entries(rt:connection_info(Cluster))),
     Value = <<"Never gonna give you up">>,
-    Bucket = "escaped",
+    Bucket = {<<"escaped">>,<<"b1">>},
     Key = edoc_lib:escape_uri("rick/astley-rolled:derp"),
     ok = yz_rt:http_put({H, P}, Bucket, Key, Value),
     ok = http_get({H, P}, Bucket, Key),
     ok.
 
-http_get({Host, Port}, Bucket, Key) ->
-    URL = lists:flatten(io_lib:format("http://~s:~s/buckets/~s/keys/~s",
-                                      [Host, integer_to_list(Port), Bucket, Key])),
+http_get({Host, Port}, {BType, BName}, Key) ->
+    URL = lists:flatten(io_lib:format("http://~s:~s/types/~s/buckets/~s/keys/~s",
+                                      [Host, integer_to_list(Port), BType, BName, Key])),
     Headers = [{"accept", "text/plain"}],
     {ok, "200", _, _} = ibrowse:send_req(URL, Headers, get, [], []),
     ok.
@@ -172,8 +174,10 @@ setup_indexing(Cluster, PBConns, YZBenchDir) ->
     ok = yz_rt:set_bucket_type_index(Node, <<"tagging">>),
     ok = create_index(Node, <<"siblings">>),
     ok = yz_rt:set_bucket_type_index(Node, <<"siblings">>),
+    ok = create_index(Node, <<"escaped">>),
+    ok = yz_rt:set_bucket_type_index(Node, <<"escaped">>),
     [yz_rt:wait_for_index(Cluster, I)
-     || I <- [<<"fruit">>, <<"tagging">>, <<"siblings">>]].
+     || I <- [<<"fruit">>, <<"tagging">>, <<"siblings">>, <<"escaped">>]].
 
 verify_deletes(Cluster, KeysDeleted, YZBenchDir) ->
     NumDeleted = length(KeysDeleted),
