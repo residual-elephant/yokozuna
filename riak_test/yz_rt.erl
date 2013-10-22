@@ -217,7 +217,8 @@ set_bucket_type_index(Node, BucketType) ->
 
 set_bucket_type_index(Node, BucketType, Index) ->
     lager:info("Set bucket type ~s index to ~s [~p]", [BucketType, Index, Node]),
-    rt:create_and_activate_bucket_type(Node, BucketType, [{?YZ_INDEX, Index}]).
+    rt:create_and_activate_bucket_type(Node, BucketType, [{?YZ_INDEX, Index}]),
+    rt:wait_until_bucket_type_status(BucketType, active, Node).
 
 solr_http(ConnInfo) ->
     proplists:get_value(solr_http, ConnInfo).
