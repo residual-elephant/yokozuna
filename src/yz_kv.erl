@@ -131,23 +131,14 @@ is_tombstone(MD) ->
 get_md_entry(MD, Key) ->
     yz_misc:dict_get(Key, MD, none).
 
-%% @doc Extract the index name from `BProps' or return the tombstone
-%% name if there is no associated index.
--spec get_index(term()) -> index_name().
-get_index(BProps) ->
-    proplists:get_value(?YZ_INDEX, BProps, ?YZ_INDEX_TOMBSTONE).
-
-%% @doc Extract the index name.
-%% @see get_index/1
+%% @doc Extract the index name from the `Bucket'. Return the tombstone
+%% value if there is none.
 -spec get_index(bkey(), ring()) -> index_name().
-%% get_index({{<<"default">>, BName}, _}, Ring) ->
-%%     %% Migrated from Riak Search, use bucket name as index name.
-%%     BName;
 get_index({Bucket, _}, Ring) ->
     BProps = riak_core_bucket:get_bucket(Bucket, Ring),
     case is_default_type(Bucket) of
         false ->
-            get_index(BProps);
+            proplists:get_value(?YZ_INDEX, BProps, ?YZ_INDEX_TOMBSTONE).
         true ->
             case proplists:get_value(search, BProps, false) of
                 false ->
@@ -372,18 +363,6 @@ put(Client, Bucket, Key, Value, ContentType) ->
     BucketProps = riak_core_bucket:get_bucket(Bucket, Ring),
     N = proplists:get_value(n_val, BucketProps),
     Client:put(O, [{pw,N},{w,N},{dw,N}]).
-
-%% @doc Remove the `Index' property from `Bucket'.  Data stored under
-%%      `Bucket' will no longer be indexed.
-%% -spec remove_index(bucket()) -> ok.
-%% remove_index(Bucket) ->
-%%     set_index(Bucket, ?YZ_INDEX_TOMBSTONE).
-
-%% @doc Set the `Index' for which data stored in `Bucket' should be
-%%      indexed under.
-%% -spec set_index(bucket_type(), index_name()) -> ok.
-%% set_index(BucketType, Index) ->
-%%     ok = riak_core_bucket:set_bucket({BucketTypel, [{?YZ_INDEX, Index}]).
 
 %%%===================================================================
 %%% Private
