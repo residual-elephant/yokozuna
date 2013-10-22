@@ -49,7 +49,7 @@ bucket_type(Name) ->
 new(_Id) ->
     ibrowse:start(),
     Bucket = basho_bench_config:get(bucket, {<<"test">>, <<"test">>}),
-    Index = bucket_type(Bucket),
+    Index = basho_bench_config:get(index, bucket_type(Bucket)),
     HTTP = basho_bench_config:get(http_conns, [{"127.0.0.1", 8098}]),
     PB = basho_bench_config:get(pb_conns, [{"127.0.0.1", 8087}]),
     BPath = basho_bench_config:get(bucket_path, bucket_path(Bucket)),
