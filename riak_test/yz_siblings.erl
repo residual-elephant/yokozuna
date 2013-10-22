@@ -77,7 +77,7 @@ http_put({Host, Port}, {BType, BName}, Key, VClock, Value) ->
     ok.
 
 http_get({Host, Port}, {BType, BName}, Key) ->
-    URL = lists:flatten(io_lib:format("http://~s:~s//types/~s/buckets/~s/keys/~s",
+    URL = lists:flatten(io_lib:format("http://~s:~s/types/~s/buckets/~s/keys/~s",
                                       [Host, integer_to_list(Port), BType, BName, Key])),
     Opts = [],
     Headers = [{"accept", "multipart/mixed"}],

@@ -210,7 +210,6 @@ select_random(List) ->
 -spec remove_index(node(), bucket()) -> ok.
 remove_index(Node, BucketType) ->
     lager:info("Remove index from bucket type ~s [~p]", [BucketType, Node]),
-    %% ok = rpc:call(Node, yz_kv, remove_index, [Bucket]).
     ok = rpc:call(Node, riak_core_bucket_type, update, [BucketType, [{?YZ_INDEX, ?YZ_INDEX_TOMBSTONE}]]).
 
 set_bucket_type_index(Node, BucketType) ->
