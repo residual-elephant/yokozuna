@@ -183,7 +183,7 @@ extract_docs(Body) ->
 %% @doc Extract the bucket/key results from the `Body' of a search
 %%      result.
 -type positions() :: {integer(), integer(), integer()}.
--spec extract_results(term(), positions()) -> [{binary(),binary(),[term()]}].
+-spec extract_results(term(), positions()) -> [{bucket(),binary(),[term()]}].
 extract_results(Docs, {TP, BP, KP}) ->
     [begin
          {_, BType} = lists:nth(TP, Fields),

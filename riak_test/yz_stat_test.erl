@@ -29,9 +29,6 @@ prepare_cluster(NumNodes) ->
     Cluster.
 
 create_indexed_bucket(Pid, Cluster, Index) ->
-    create_indexed_bucket(Pid, Cluster, Index, Index).
-
-create_indexed_bucket(Pid, Cluster, Index, Bucket) ->
     ?assertEqual(ok, riakc_pb_socket:create_search_index(Pid, Index)),
     yz_rt:set_bucket_type_index(hd(Cluster), Index),
     yz_rt:wait_for_index(Cluster, Index),

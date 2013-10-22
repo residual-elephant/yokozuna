@@ -138,7 +138,7 @@ get_index({Bucket, _}, Ring) ->
     BProps = riak_core_bucket:get_bucket(Bucket, Ring),
     case is_default_type(Bucket) of
         false ->
-            proplists:get_value(?YZ_INDEX, BProps, ?YZ_INDEX_TOMBSTONE).
+            proplists:get_value(?YZ_INDEX, BProps, ?YZ_INDEX_TOMBSTONE);
         true ->
             case proplists:get_value(search, BProps, false) of
                 false ->
