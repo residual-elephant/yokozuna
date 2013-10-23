@@ -231,6 +231,19 @@ store_schema(PBConn, Name, Raw) ->
     ?assertEqual(ok, riakc_pb_socket:create_search_schema(PBConn, Name, Raw)),
     ok.
 
+wait_for_bucket_type(Cluster, BucketType) ->
+    F = fun(Node) ->
+                {Host, Port} = riak_pb(hd(rt:connection_info([Node]))),
+                {ok, PBConn} = riakc_pb_socket:start_link(Host, Port),
+                R = riakc_pb_socket:get_bucket_type(PBConn, BucketType),
+                case R of
+                    {ok,_} -> true;
+                    _ -> false
+                end
+        end,
+    wait_until(Cluster, F),
+    ok.
+
 %% @see wait_for_schema/3
 wait_for_schema(Cluster, Name) ->
     wait_for_schema(Cluster, Name, ignore).

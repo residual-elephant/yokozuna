@@ -72,6 +72,7 @@ create_index(Cluster, BucketType, Index) ->
     ?assertEqual(ok, riakc_pb_socket:create_search_index(Pid, Index)),
     % Add the index to the bucket props
     yz_rt:set_bucket_type_index(Node, BucketType, Index),
+    yz_rt:wait_for_bucket_type(Cluster, BucketType),
     yz_rt:wait_for_index(Cluster, Index),
     %% Check that the index exists
     {ok, IndexData} = riakc_pb_socket:get_search_index(Pid, Index),
