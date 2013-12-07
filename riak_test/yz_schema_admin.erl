@@ -326,7 +326,10 @@ confirm_bad_schema(Cluster) ->
     {ok, Status3, _, _} = http(put, URL, Headers, ?TEST_SCHEMA),
     ?assertEqual("204", Status3),
 
-    lager:info("wait for yz to retry creation of core ~s", [Name]),
+    lager:info("reload the index ~s", [Name]),
+    ok = rpc:call(select_random(Cluster), yz_index, reload_index, [Name]),
+
+    lager:info("wait for index ~s to reload", [Name]),
     Node = select_random(Cluster),
     F = fun(Node2) ->
                 lager:info("try to ping core ~s", [Name]),
